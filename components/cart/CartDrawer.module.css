@@ -1,0 +1,152 @@
+.drawer {
+  width: min(28rem, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.drawer[open] {
+  animation: slide-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.drawer::backdrop {
+  background: rgb(8 6 20 / 0.7);
+  backdrop-filter: blur(2px);
+}
+
+@keyframes slide-in {
+  from {
+    translate: 100% 0;
+  }
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--pink);
+}
+
+.freeShipping {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.875rem;
+  background: var(--surface);
+}
+
+.freeShipping p {
+  margin: 0;
+}
+
+.freeShipping[data-unlocked] p {
+  color: var(--green);
+  text-shadow: var(--glow-green-text);
+}
+
+.progress {
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+  transition: width 300ms ease;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1.5rem;
+}
+
+.foot {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.subtotal {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.error {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--pink);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.viewCart {
+  justify-self: center;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 1rem;
+  flex: 1;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 1.125rem;
+}

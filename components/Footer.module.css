@@ -1,0 +1,68 @@
+.footer {
+  margin-top: 6rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.grid {
+  display: grid;
+  gap: 2.5rem;
+  padding-block: 3.5rem;
+}
+
+@media (min-width: 48rem) {
+  .grid {
+    grid-template-columns: 2fr 1fr 1.5fr;
+  }
+}
+
+.brand {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-neon-stack);
+  font-size: 1.5rem;
+  color: var(--pink);
+  text-shadow: var(--glow-pink-text);
+}
+
+.heading {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.links {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.links a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.links a:hover {
+  color: var(--blue);
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+.bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding-block: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.bottom p {
+  margin: 0;
+}

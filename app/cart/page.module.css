@@ -1,0 +1,81 @@
+.page {
+  padding-top: clamp(2rem, 5vw, 3.5rem);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.head a {
+  color: var(--blue);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 600;
+}
+
+.layout {
+  display: grid;
+  gap: 2.5rem;
+}
+
+@media (min-width: 56rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    align-items: start;
+    gap: 4rem;
+  }
+}
+
+.summary {
+  display: grid;
+  gap: 0.875rem;
+  margin-top: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.subtotal {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.error {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--pink);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding-block: 3rem;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--muted);
+}

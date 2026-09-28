@@ -1,0 +1,169 @@
+:root {
+  color-scheme: dark;
+
+  --bg: #0d0b1f;          /* deep indigo night */
+  --surface: #17142f;
+  --surface-2: #221d44;
+  --line: #332c5e;
+  --text: #f3f0ff;
+  --muted: #a9a2cf;
+
+  --blue: #2de2ff;        /* neon blue */
+  --pink: #ff2bd6;        /* neon pink */
+  --purple: #a04bff;      /* neon purple */
+  --green: #39ff14;       /* neon green: availability and success */
+
+  --glow-blue: 0 0 0 1px rgb(45 226 255 / 0.5), 0 0 18px rgb(45 226 255 / 0.35);
+  --glow-pink: 0 0 0 1px rgb(255 43 214 / 0.5), 0 0 18px rgb(255 43 214 / 0.35);
+  --glow-purple: 0 0 0 1px rgb(160 75 255 / 0.45), 0 0 22px rgb(160 75 255 / 0.3);
+  --glow-green: 0 0 0 1px rgb(57 255 20 / 0.45), 0 0 16px rgb(57 255 20 / 0.35);
+  --glow-green-text: 0 0 10px rgb(57 255 20 / 0.55);
+  --glow-blue-text: 0 0 12px rgb(45 226 255 / 0.55);
+  --glow-pink-text: 0 0 14px rgb(255 43 214 / 0.6);
+
+  --radius: 10px;
+  --font-neon-stack: var(--font-neon), "Trebuchet MS", sans-serif;
+  --font-text-stack: var(--font-text), system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text-stack);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--pink);
+  color: var(--bg);
+}
+
+/* Layout helper, same idea as Shopify's .page-width */
+.page-width {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 3rem);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.75rem 1.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow 160ms ease, border-color 160ms ease, color 160ms ease, filter 160ms ease;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--pink), var(--purple) 55%, var(--blue));
+  color: var(--bg);
+}
+
+.btn-primary:not(:disabled):hover {
+  box-shadow: 0 0 24px rgb(255 43 214 / 0.45), 0 0 32px rgb(45 226 255 / 0.3);
+  filter: saturate(1.15);
+}
+
+.btn-secondary {
+  border-color: var(--blue);
+  background: transparent;
+  color: var(--blue);
+}
+
+.btn-secondary:not(:disabled):hover {
+  box-shadow: var(--glow-blue);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  background: var(--blue);
+  color: var(--bg);
+  font-weight: 700;
+  translate: 0 -200%;
+}
+
+.skip-link:focus {
+  translate: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

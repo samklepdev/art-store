@@ -1,0 +1,35 @@
+.qty {
+  display: inline-grid;
+  grid-template-columns: 2.75rem 2.5rem 2.75rem;
+  align-items: center;
+  height: 2.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.qty button {
+  height: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 1.125rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qty button:disabled {
+  color: var(--line);
+  cursor: not-allowed;
+}
+
+.qty output {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.small {
+  grid-template-columns: 2.25rem 2rem 2.25rem;
+  height: 2.375rem;
+  font-size: 0.875rem;
+}

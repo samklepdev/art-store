@@ -1,0 +1,122 @@
+.breadcrumb {
+  display: flex;
+  gap: 0.5rem;
+  padding-block: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.breadcrumb a {
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--blue);
+}
+
+.layout {
+  display: grid;
+  gap: 2.5rem;
+}
+
+@media (min-width: 56rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(3rem, 5vw, 5rem);
+  }
+
+  .info {
+    position: sticky;
+    top: 6.5rem;
+  }
+}
+
+.vendor {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--purple);
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.description {
+  margin: 2rem 0 0;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.accordions {
+  margin-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+
+.accordion {
+  border-bottom: 1px solid var(--line);
+}
+
+.accordion summary {
+  display: flex;
+  justify-content: space-between;
+  padding-block: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.accordion summary::after {
+  content: "+";
+  color: var(--blue);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.accordion[open] summary::after {
+  content: "−";
+  color: var(--pink);
+}
+
+.accordion p {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.specs {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.specs div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 1rem;
+}
+
+.specs dt {
+  color: var(--muted);
+}
+
+.specs dd {
+  margin: 0;
+}
+
+.related {
+  margin-top: clamp(4rem, 9vw, 6rem);
+}
+
+.relatedTitle {
+  margin: 0 0 1.75rem;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+}

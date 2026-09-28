@@ -1,0 +1,23 @@
+.page {
+  display: grid;
+  justify-items: start;
+  gap: 1.25rem;
+  padding-block: clamp(3rem, 10vw, 7rem);
+  max-width: 44rem;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-neon-stack);
+  font-weight: 400;
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 0 0 10px rgb(57 255 20 / 0.7), 0 0 36px rgb(57 255 20 / 0.4);
+}
+
+.copy {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  color: var(--muted);
+}

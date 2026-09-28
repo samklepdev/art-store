@@ -1,0 +1,160 @@
+.form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.priceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+}
+
+.price {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--blue);
+  text-shadow: var(--glow-blue-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.saleBadge,
+.soldBadge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.saleBadge {
+  background: var(--pink);
+  color: var(--bg);
+}
+
+.soldBadge {
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.note {
+  margin: -1rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.stock {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: -0.5rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--green);
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  display: block;
+  margin-bottom: 0.625rem;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.legend span {
+  color: var(--text);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pill {
+  position: relative;
+  cursor: pointer;
+}
+
+.pill input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pill > span {
+  display: block;
+  padding: 0.625rem 1.125rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9375rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.pill:hover > span {
+  border-color: var(--purple);
+}
+
+.pill input:checked + span {
+  border-color: var(--pink);
+  box-shadow: var(--glow-pink);
+  background: var(--surface-2);
+}
+
+.pill input:focus-visible + span {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.pill[data-unavailable] > span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.original {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border-left: 3px solid var(--purple);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.quantity {
+  display: grid;
+  justify-items: start;
+}
+
+.buttons {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--pink);
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+}
+
+.unavailable {
+  color: var(--muted);
+}
