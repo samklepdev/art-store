@@ -21,6 +21,7 @@
 - `inventory` is tri-state: `NULL` = made to order, `0` = sold out, `n` = limited. Forms must be able to send `NULL`.
 - Product removal is unpublish only. No task in this plan issues `DELETE FROM products`. Variants and images may be deleted, but a variant that appears in `order_items` must be refused — `order_items.variant_id` is `ON DELETE SET NULL`, so deleting it would sever an order's link to what was bought.
 - `schema.sql` is the baseline and is never edited. All schema change goes in `db/migrations/NNN-name.sql`.
+- **Clear a server-side form error as soon as the user edits.** With `useActionState`, `state` only changes on a server response, so an error derived from it alone keeps describing a value that may no longer be on screen — edit the title, watch the slug auto-derive to something new, and "that web address is already used" stays visible under the new slug. Every form gates its error on an `edited` flag set by a single `onChange` on the `<form>` element (React change events bubble, so one handler covers every field) and cleared when the next submit starts.
 - Reuse the existing global CSS utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-block`, `.page-width`, `.visually-hidden`) rather than restyling buttons. Per-component styles go in a sibling `*.module.css`.
 - Path alias is `@/*` → repo root.
 - Several tasks say "append to `app/(admin)/admin/actions.ts`" and include `import` lines with the new code. Merge those imports into the single import block at the top of the file rather than leaving them mid-file — legal in ES modules, but it reads badly and trips most lint configs.
@@ -1791,10 +1792,20 @@ export function NewProductForm() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
 
-  const error = state && !state.ok ? state : null;
+  // `state` only changes on a server response, so gate the error on whether the
+  // user has edited since: otherwise a message keeps describing a value that is
+  // no longer on screen. One onChange on the <form> covers every field, since
+  // React change events bubble.
+  const [edited, setEdited] = useState(false);
+  const error = !edited && state && !state.ok ? state : null;
+
+  const submit = (formData: FormData) => {
+    setEdited(false);
+    formAction(formData);
+  };
 
   return (
-    <form action={formAction} className={styles.form}>
+    <form action={submit} onChange={() => setEdited(true)} className={styles.form}>
       <div className={styles.field}>
         <label className={styles.label} htmlFor="title">
           Title
@@ -2152,7 +2163,7 @@ Create `app/(admin)/admin/products/[id]/DetailsForm.tsx`:
 ```tsx
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { AdminProduct } from "@/lib/admin/products";
 import { updateProductAction, type ActionResult } from "../../actions";
 import styles from "../../form.module.css";
@@ -2168,10 +2179,20 @@ export function DetailsForm({
     updateProductAction,
     null,
   );
-  const error = state && !state.ok ? state : null;
+  // `state` only changes on a server response, so gate the error on whether the
+  // user has edited since: otherwise a message keeps describing a value that is
+  // no longer on screen. One onChange on the <form> covers every field, since
+  // React change events bubble.
+  const [edited, setEdited] = useState(false);
+  const error = !edited && state && !state.ok ? state : null;
+
+  const submit = (formData: FormData) => {
+    setEdited(false);
+    formAction(formData);
+  };
 
   return (
-    <form action={formAction} className={styles.section}>
+    <form action={submit} onChange={() => setEdited(true)} className={styles.section}>
       <h2 className={styles.sectionHeading}>Details</h2>
       <input type="hidden" name="id" value={product.id} />
 
@@ -2654,10 +2675,20 @@ function VariantRow({
   const [madeToOrder, setMadeToOrder] = useState(variant ? variant.inventory === null : false);
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const error = state && !state.ok ? state : null;
+  // `state` only changes on a server response, so gate the error on whether the
+  // user has edited since: otherwise a message keeps describing a value that is
+  // no longer on screen. One onChange on the <form> covers every field, since
+  // React change events bubble.
+  const [edited, setEdited] = useState(false);
+  const error = !edited && state && !state.ok ? state : null;
+
+  const submit = (formData: FormData) => {
+    setEdited(false);
+    formAction(formData);
+  };
 
   return (
-    <form action={formAction} className={styles.row}>
+    <form action={submit} onChange={() => setEdited(true)} className={styles.row}>
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="id" value={variant?.id ?? ""} />
 
