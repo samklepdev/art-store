@@ -803,6 +803,15 @@ describe("session tokens", () => {
       expect(await verifySession(bad, SECRET)).toBe(false);
     }
   });
+
+  // The cases above never reach atob: four are stopped by the separator guard,
+  // and "abc." / "not-a-number.aaaa" decode successfully and fail on the HMAC
+  // instead. These two have a valid-looking payload and a signature that atob
+  // genuinely throws on, so they are what exercises the catch in fromBase64Url.
+  it("rejects a signature that is not valid base64", async () => {
+    expect(await verifySession("5.!!!!", SECRET)).toBe(false);
+    expect(await verifySession("5.a", SECRET)).toBe(false);
+  });
 });
 ```
 
