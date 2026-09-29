@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPassword, endSession, requireAdmin, startSession } from "@/lib/admin/auth";
-import { setFeatured, setPublished, slugForId } from "@/lib/admin/products";
+import { messageForDbError } from "@/lib/admin/errors";
+import { createProduct, setFeatured, setPublished, slugForId } from "@/lib/admin/products";
+import { slugify } from "@/lib/admin/slug";
 
 export type ActionResult = { ok: true } | { ok: false; error: string; field?: string };
 
@@ -54,4 +56,37 @@ export async function toggleFeatured(id: number, featured: boolean): Promise<voi
   const slug = await slugForId(id);
   await revalidateStorefront(slug ? [slug] : []);
   revalidatePath("/admin");
+}
+
+export async function createProductAction(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: false, error: "A title is required.", field: "title" };
+
+  const typedSlug = String(formData.get("slug") ?? "").trim();
+  const slug = typedSlug || slugify(title);
+  if (!slug) {
+    return {
+      ok: false,
+      error: "Add a web address — the title has no letters or numbers to build one from.",
+      field: "slug",
+    };
+  }
+
+  let id: number;
+  try {
+    id = await createProduct(title, slug);
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message, field: "slug" };
+    throw error;
+  }
+
+  await revalidateStorefront([slug]);
+  revalidatePath("/admin");
+  redirect(`/admin/products/${id}`);
 }

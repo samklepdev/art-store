@@ -62,3 +62,13 @@ export async function slugForId(id: number): Promise<string | null> {
   const { rows } = await pool.query<{ slug: string }>(`SELECT slug FROM products WHERE id = $1`, [id]);
   return rows[0]?.slug ?? null;
 }
+
+/** Creates a draft. Variants and images need a product_id, so creation is
+ *  deliberately minimal and the edit screen fills in the rest. */
+export async function createProduct(title: string, slug: string): Promise<number> {
+  const { rows } = await pool.query<{ id: number }>(
+    `INSERT INTO products (title, slug, published) VALUES ($1, $2, false) RETURNING id`,
+    [title, slug],
+  );
+  return rows[0].id;
+}
