@@ -5,6 +5,14 @@ import { redirect } from "next/navigation";
 import { checkPassword, endSession, requireAdmin, startSession } from "@/lib/admin/auth";
 import { messageForDbError } from "@/lib/admin/errors";
 import {
+  addImage,
+  applyImagePositions,
+  deleteImage,
+  listImages,
+  productIdForImage,
+  updateImageAlt,
+} from "@/lib/admin/images";
+import {
   createProduct,
   getProductForAdmin,
   listCollectionNames,
@@ -13,6 +21,7 @@ import {
   slugForId,
   updateProduct,
 } from "@/lib/admin/products";
+import { moveItem } from "@/lib/admin/reorder";
 import { slugify } from "@/lib/admin/slug";
 import { parseMoney } from "@/lib/money";
 import {
@@ -311,4 +320,72 @@ export async function deleteVariantAction(id: number): Promise<ActionResult> {
   }
   revalidatePath("/admin");
   return { ok: true };
+}
+
+async function revalidateProduct(productId: number): Promise<void> {
+  const slug = await slugForId(productId);
+  await revalidateStorefront(slug ? [slug] : []);
+  revalidatePath(`/admin/products/${productId}`);
+  revalidatePath("/admin");
+}
+
+export async function addImageAction(input: {
+  productId: number;
+  url: string;
+  width: number;
+  height: number;
+  alt: string;
+}): Promise<ActionResult> {
+  await requireAdmin();
+
+  if (!Number.isInteger(input.productId)) return { ok: false, error: "Unknown product." };
+  if (!Number.isInteger(input.width) || input.width <= 0) {
+    return { ok: false, error: "The image width could not be read." };
+  }
+  if (!Number.isInteger(input.height) || input.height <= 0) {
+    return { ok: false, error: "The image height could not be read." };
+  }
+
+  try {
+    await addImage(input.productId, {
+      url: input.url,
+      width: input.width,
+      height: input.height,
+      alt: input.alt,
+    });
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
+  await revalidateProduct(input.productId);
+  return { ok: true };
+}
+
+export async function updateAltAction(id: number, alt: string): Promise<void> {
+  await requireAdmin();
+  await updateImageAlt(id, alt);
+  const productId = await productIdForImage(id);
+  if (productId !== null) await revalidateProduct(productId);
+}
+
+export async function deleteImageAction(id: number): Promise<void> {
+  await requireAdmin();
+  const productId = await productIdForImage(id);
+  await deleteImage(id);
+  if (productId !== null) await revalidateProduct(productId);
+}
+
+export async function moveImageAction(id: number, direction: "up" | "down"): Promise<void> {
+  await requireAdmin();
+  const productId = await productIdForImage(id);
+  if (productId === null) return;
+
+  const images = await listImages(productId);
+  const positions = moveItem(images, id, direction);
+  if (positions.length === 0) return;
+
+  await applyImagePositions(productId, positions);
+  await revalidateProduct(productId);
 }
