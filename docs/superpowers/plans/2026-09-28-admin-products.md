@@ -21,7 +21,7 @@
 - `inventory` is tri-state: `NULL` = made to order, `0` = sold out, `n` = limited. Forms must be able to send `NULL`.
 - Product removal is unpublish only. No task in this plan issues `DELETE FROM products`. Variants and images may be deleted, but a variant that appears in `order_items` must be refused — `order_items.variant_id` is `ON DELETE SET NULL`, so deleting it would sever an order's link to what was bought.
 - `schema.sql` is the baseline and is never edited. All schema change goes in `db/migrations/NNN-name.sql`.
-- **Clear a server-side form error as soon as the user edits.** With `useActionState`, `state` only changes on a server response, so an error derived from it alone keeps describing a value that may no longer be on screen — edit the title, watch the slug auto-derive to something new, and "that web address is already used" stays visible under the new slug. Every form gates its error on an `edited` flag set by a single `onChange` on the `<form>` element (React change events bubble, so one handler covers every field) and cleared when the next submit starts.
+- **Clear a server-side form error as soon as the user edits.** With `useActionState`, `state` only changes on a server response, so an error derived from it alone keeps describing a value that may no longer be on screen — edit the title, watch the slug auto-derive to something new, and "that web address is already used" stays visible under the new slug. Every form gates its error on an `edited` flag set by a single `onChange` on the `<form>` element (React change events bubble, so one handler covers every field) and reset by an effect on `state`. Keep `action` bound to the server action itself — wrapping it in a client closure costs progressive enhancement, because only a real action reference is rendered into the DOM's `action` attribute.
 - Reuse the existing global CSS utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-block`, `.page-width`, `.visually-hidden`) rather than restyling buttons. Per-component styles go in a sibling `*.module.css`.
 - Path alias is `@/*` → repo root.
 - Several tasks say "append to `app/(admin)/admin/actions.ts`" and include `import` lines with the new code. Merge those imports into the single import block at the top of the file rather than leaving them mid-file — legal in ES modules, but it reads badly and trips most lint configs.
@@ -1778,7 +1778,7 @@ Create `app/(admin)/admin/products/new/NewProductForm.tsx`:
 ```tsx
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { slugify } from "@/lib/admin/slug";
 import { createProductAction, type ActionResult } from "../../actions";
 import styles from "../../form.module.css";
@@ -1796,16 +1796,18 @@ export function NewProductForm() {
   // user has edited since: otherwise a message keeps describing a value that is
   // no longer on screen. One onChange on the <form> covers every field, since
   // React change events bubble.
+  //
+  // The gate is reset by an effect on `state` rather than by wrapping formAction
+  // in a closure. `action` must stay bound to the server action itself: React
+  // renders that as a real endpoint in the DOM's action attribute, so the form
+  // still submits before JS hydrates. A wrapped closure cannot be serialised
+  // that way and silently costs progressive enhancement.
   const [edited, setEdited] = useState(false);
+  useEffect(() => setEdited(false), [state]);
   const error = !edited && state && !state.ok ? state : null;
 
-  const submit = (formData: FormData) => {
-    setEdited(false);
-    formAction(formData);
-  };
-
   return (
-    <form action={submit} onChange={() => setEdited(true)} className={styles.form}>
+    <form action={formAction} onChange={() => setEdited(true)} className={styles.form}>
       <div className={styles.field}>
         <label className={styles.label} htmlFor="title">
           Title
@@ -2163,7 +2165,7 @@ Create `app/(admin)/admin/products/[id]/DetailsForm.tsx`:
 ```tsx
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { AdminProduct } from "@/lib/admin/products";
 import { updateProductAction, type ActionResult } from "../../actions";
 import styles from "../../form.module.css";
@@ -2183,16 +2185,18 @@ export function DetailsForm({
   // user has edited since: otherwise a message keeps describing a value that is
   // no longer on screen. One onChange on the <form> covers every field, since
   // React change events bubble.
+  //
+  // The gate is reset by an effect on `state` rather than by wrapping formAction
+  // in a closure. `action` must stay bound to the server action itself: React
+  // renders that as a real endpoint in the DOM's action attribute, so the form
+  // still submits before JS hydrates. A wrapped closure cannot be serialised
+  // that way and silently costs progressive enhancement.
   const [edited, setEdited] = useState(false);
+  useEffect(() => setEdited(false), [state]);
   const error = !edited && state && !state.ok ? state : null;
 
-  const submit = (formData: FormData) => {
-    setEdited(false);
-    formAction(formData);
-  };
-
   return (
-    <form action={submit} onChange={() => setEdited(true)} className={styles.section}>
+    <form action={formAction} onChange={() => setEdited(true)} className={styles.section}>
       <h2 className={styles.sectionHeading}>Details</h2>
       <input type="hidden" name="id" value={product.id} />
 
@@ -2648,7 +2652,7 @@ Create `app/(admin)/admin/products/[id]/VariantsSection.tsx`:
 ```tsx
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import type { AdminVariant } from "@/lib/admin/variants";
 import { deleteVariantAction, saveVariantAction, type ActionResult } from "../../actions";
@@ -2679,16 +2683,18 @@ function VariantRow({
   // user has edited since: otherwise a message keeps describing a value that is
   // no longer on screen. One onChange on the <form> covers every field, since
   // React change events bubble.
+  //
+  // The gate is reset by an effect on `state` rather than by wrapping formAction
+  // in a closure. `action` must stay bound to the server action itself: React
+  // renders that as a real endpoint in the DOM's action attribute, so the form
+  // still submits before JS hydrates. A wrapped closure cannot be serialised
+  // that way and silently costs progressive enhancement.
   const [edited, setEdited] = useState(false);
+  useEffect(() => setEdited(false), [state]);
   const error = !edited && state && !state.ok ? state : null;
 
-  const submit = (formData: FormData) => {
-    setEdited(false);
-    formAction(formData);
-  };
-
   return (
-    <form action={submit} onChange={() => setEdited(true)} className={styles.row}>
+    <form action={formAction} onChange={() => setEdited(true)} className={styles.row}>
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="id" value={variant?.id ?? ""} />
 
