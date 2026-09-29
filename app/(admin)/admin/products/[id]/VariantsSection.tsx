@@ -17,11 +17,7 @@ function VariantRow({
   onDone?: () => void;
 }) {
   const [state, formAction, pending] = useActionState<ActionResult | null, FormData>(
-    async (previous, formData) => {
-      const result = await saveVariantAction(previous, formData);
-      if (result.ok) onDone?.();
-      return result;
-    },
+    saveVariantAction,
     null,
   );
   const [madeToOrder, setMadeToOrder] = useState(variant ? variant.inventory === null : false);
@@ -37,8 +33,18 @@ function VariantRow({
   // renders that as a real endpoint in the DOM's action attribute, so the form
   // still submits before JS hydrates. A wrapped closure cannot be serialised
   // that way and silently costs progressive enhancement.
+  //
+  // `onDone` lives in this same effect rather than in a wrapper around
+  // saveVariantAction, for the same reason plus one more: a wrapper that calls
+  // onDone from inside the reducer would run the parent's setAdding(false) —
+  // unmounting this row — while this component's own transition was still
+  // settling.
   const [edited, setEdited] = useState(false);
-  useEffect(() => setEdited(false), [state]);
+  useEffect(() => {
+    setEdited(false);
+    setDeleteError(null);
+    if (state?.ok) onDone?.();
+  }, [state]);
   const error = !edited && state && !state.ok ? state : null;
 
   return (
@@ -176,13 +182,13 @@ function VariantRow({
             {deleting ? "Removing…" : "Remove"}
           </button>
         )}
-        {state?.ok && <p className={form.success}>Saved.</p>}
+        {state?.ok && !edited && <p className={form.success}>Saved.</p>}
         {error && (
           <p className={form.error} role="alert">
             {error.error}
           </p>
         )}
-        {deleteError && (
+        {!edited && deleteError && (
           <p className={form.error} role="alert">
             {deleteError}
           </p>

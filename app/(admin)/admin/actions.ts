@@ -245,7 +245,9 @@ export async function saveVariantAction(
   await requireAdmin();
 
   const productId = Number(formData.get("productId"));
-  if (!Number.isInteger(productId)) return { ok: false, error: "Unknown product." };
+  if (!Number.isInteger(productId) || productId <= 0) {
+    return { ok: false, error: "Unknown product." };
+  }
 
   const parsed = readVariantInput(formData);
   if ("ok" in parsed) return parsed;
@@ -258,6 +260,14 @@ export async function saveVariantAction(
     } else {
       const id = Number(idRaw);
       if (!Number.isInteger(id)) return { ok: false, error: "Unknown format." };
+      // The client's hidden `productId` field only drives revalidation. Trusting
+      // it for that without checking it against the variant's real parent would
+      // let an edit to a variant of another product revalidate the wrong
+      // storefront page, leaving the real product serving stale cached HTML.
+      const realProductId = await productIdForVariant(id);
+      if (realProductId === null || realProductId !== productId) {
+        return { ok: false, error: "Unknown format." };
+      }
       await updateVariant(id, parsed);
     }
   } catch (error) {
@@ -287,7 +297,13 @@ export async function deleteVariantAction(id: number): Promise<ActionResult> {
   }
 
   const productId = await productIdForVariant(id);
-  await deleteVariant(id);
+  try {
+    await deleteVariant(id);
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
   if (productId !== null) {
     const slug = await slugForId(productId);
     await revalidateStorefront(slug ? [slug] : []);
