@@ -22,6 +22,8 @@ import {
   updateProduct,
 } from "@/lib/admin/products";
 import { moveItem } from "@/lib/admin/reorder";
+import { setOrderStatus } from "@/lib/admin/orders";
+import { isSettableStatus, type SettableStatus } from "@/lib/admin/orderStatus";
 import { slugify } from "@/lib/admin/slug";
 import { readVariantInput } from "@/lib/admin/variantInput";
 import {
@@ -365,5 +367,33 @@ export async function moveImageAction(
   }
 
   await revalidateProduct(productId);
+  return { ok: true };
+}
+
+export async function setOrderStatusAction(
+  id: number,
+  status: SettableStatus,
+): Promise<ActionResult> {
+  // requireAdmin() stays outside the try: it redirects on an expired session by
+  // throwing, and a try here would swallow that navigation.
+  await requireAdmin();
+
+  if (!Number.isInteger(id)) return { ok: false, error: "Unknown order." };
+  // The typed param is a compile-time hint only; a server action receives
+  // untrusted input, so re-validate at the boundary.
+  if (!isSettableStatus(status)) {
+    return { ok: false, error: "That status can't be set here." };
+  }
+
+  try {
+    await setOrderStatus(id, status);
+  } catch (error) {
+    return { ok: false, error: messageForDbError(error) ?? "Couldn't update. Try again." };
+  }
+
+  // Admin-only: no storefront revalidation. Order status never affects a
+  // storefront page.
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
   return { ok: true };
 }
