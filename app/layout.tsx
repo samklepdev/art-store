@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Tilt_Neon } from "next/font/google";
-import { CartDrawer } from "@/components/cart/CartDrawer";
-import { CartProvider } from "@/components/cart/CartProvider";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -22,17 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${neon.variable} ${text.variable}`}>
-      <body>
-        <CartProvider>
-          <a href="#main" className="skip-link">
-            Skip to content
-          </a>
-          <Header />
-          <main id="main">{children}</main>
-          <Footer />
-          <CartDrawer />
-        </CartProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
