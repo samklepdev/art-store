@@ -1326,7 +1326,11 @@ export type AdminProductRow = {
   collection: string | null;
   published: boolean;
   featured: boolean;
-  updatedAt: string;
+  /** node-postgres parses timestamptz into a JS Date, not a string. The query
+   *  generic is a compile-time assertion only and coerces nothing at runtime,
+   *  so typing this `string` would make `.slice()` throw and rendering it in
+   *  JSX fail with "Objects are not valid as a React child". */
+  updatedAt: Date;
   minPriceCents: number | null;
   maxPriceCents: number | null;
   variantCount: number;
@@ -1428,7 +1432,7 @@ Create `app/(admin)/admin/ProductRow.tsx`:
 
 import Image from "next/image";
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import type { AdminProductRow } from "@/lib/admin/products";
 import { togglePublished } from "./actions";
@@ -1442,6 +1446,7 @@ function priceLabel(row: AdminProductRow): string {
 
 export function ProductRow({ row }: { row: AdminProductRow }) {
   const [pending, startTransition] = useTransition();
+  const [failed, setFailed] = useState(false);
 
   return (
     <tr className={styles.row} data-pending={pending || undefined}>
@@ -1474,10 +1479,28 @@ export function ProductRow({ row }: { row: AdminProductRow }) {
           type="button"
           className="btn btn-secondary"
           disabled={pending}
-          onClick={() => startTransition(() => void togglePublished(row.id, !row.published))}
+          onClick={() =>
+            // Return the promise rather than discarding it with `void`: React only
+            // holds a transition pending while the callback's thenable is unsettled,
+            // so a synchronous `undefined` ends it immediately and `pending` never
+            // shows. The catch is what stops a failed toggle from being silent.
+            startTransition(async () => {
+              setFailed(false);
+              try {
+                await togglePublished(row.id, !row.published);
+              } catch {
+                setFailed(true);
+              }
+            })
+          }
         >
           {row.published ? "Unpublish" : "Publish"}
         </button>
+        {failed && (
+          <span className={styles.rowError} role="alert">
+            Couldn&rsquo;t update
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -1635,6 +1658,13 @@ Create `app/(admin)/admin/products.module.css`:
 .badgeFeatured {
   background: #fef3c7;
   color: #92400e;
+}
+
+.rowError {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--danger, #b91c1c);
 }
 ```
 
@@ -3453,6 +3483,22 @@ async function readDimensions(file: File): Promise<{ width: number; height: numb
 function ImageCard({ image, last }: { image: AdminImage; last: boolean }) {
   const [pending, start] = useTransition();
   const [alt, setAlt] = useState(image.alt);
+  const [failed, setFailed] = useState(false);
+
+  // Hand the promise to startTransition rather than discarding it with `void`:
+  // React only holds a transition pending while the callback's thenable is
+  // unsettled, so a synchronous `undefined` ends it at once and `pending` never
+  // shows. The catch stops a failed action from being silent. Safe to catch here
+  // because none of these actions call redirect().
+  const run = (action: () => Promise<unknown>) =>
+    start(async () => {
+      setFailed(false);
+      try {
+        await action();
+      } catch {
+        setFailed(true);
+      }
+    });
 
   return (
     <li className={styles.card} data-pending={pending || undefined}>
@@ -3474,20 +3520,25 @@ function ImageCard({ image, last }: { image: AdminImage; last: boolean }) {
           value={alt}
           onChange={(event) => setAlt(event.target.value)}
           onBlur={() => {
-            if (alt !== image.alt) start(() => void updateAltAction(image.id, alt));
+            if (alt !== image.alt) run(() => updateAltAction(image.id, alt));
           }}
         />
         <p className={form.hint}>
           {image.width} × {image.height} px
           {image.position === 0 && " · main image"}
         </p>
+        {failed && (
+          <p className={form.error} role="alert">
+            That didn&rsquo;t save. Try again.
+          </p>
+        )}
       </div>
       <div className={styles.cardActions}>
         <button
           type="button"
           className="btn btn-secondary"
           disabled={pending || image.position === 0}
-          onClick={() => start(() => void moveImageAction(image.id, "up"))}
+          onClick={() => run(() => moveImageAction(image.id, "up"))}
         >
           ↑<span className="visually-hidden"> Move earlier</span>
         </button>
@@ -3495,7 +3546,7 @@ function ImageCard({ image, last }: { image: AdminImage; last: boolean }) {
           type="button"
           className="btn btn-secondary"
           disabled={pending || last}
-          onClick={() => start(() => void moveImageAction(image.id, "down"))}
+          onClick={() => run(() => moveImageAction(image.id, "down"))}
         >
           ↓<span className="visually-hidden"> Move later</span>
         </button>
@@ -3503,7 +3554,7 @@ function ImageCard({ image, last }: { image: AdminImage; last: boolean }) {
           type="button"
           className="btn btn-secondary"
           disabled={pending}
-          onClick={() => start(() => void deleteImageAction(image.id))}
+          onClick={() => run(() => deleteImageAction(image.id))}
         >
           Remove
         </button>
