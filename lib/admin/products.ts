@@ -8,7 +8,10 @@ export type AdminProductRow = {
   collection: string | null;
   published: boolean;
   featured: boolean;
-  updatedAt: string;
+  // node-postgres parses timestamptz columns into a JS Date at runtime;
+  // pool.query<T>()'s generic is a compile-time assertion only and coerces
+  // nothing, so this must match what the driver actually returns.
+  updatedAt: Date;
   minPriceCents: number | null;
   maxPriceCents: number | null;
   variantCount: number;

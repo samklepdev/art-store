@@ -85,3 +85,10 @@
   background: #fef3c7;
   color: #92400e;
 }
+
+.rowError {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--danger, #b91c1c);
+}

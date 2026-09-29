@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import type { AdminProductRow } from "@/lib/admin/products";
 import { togglePublished } from "./actions";
@@ -16,6 +16,7 @@ function priceLabel(row: AdminProductRow): string {
 
 export function ProductRow({ row }: { row: AdminProductRow }) {
   const [pending, startTransition] = useTransition();
+  const [failed, setFailed] = useState(false);
 
   return (
     <tr className={styles.row} data-pending={pending || undefined}>
@@ -48,10 +49,24 @@ export function ProductRow({ row }: { row: AdminProductRow }) {
           type="button"
           className="btn btn-secondary"
           disabled={pending}
-          onClick={() => startTransition(() => void togglePublished(row.id, !row.published))}
+          onClick={() =>
+            startTransition(async () => {
+              setFailed(false);
+              try {
+                await togglePublished(row.id, !row.published);
+              } catch {
+                setFailed(true);
+              }
+            })
+          }
         >
           {row.published ? "Unpublish" : "Publish"}
         </button>
+        {failed && (
+          <span className={styles.rowError} role="alert">
+            Couldn&rsquo;t update
+          </span>
+        )}
       </td>
     </tr>
   );
