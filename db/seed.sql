@@ -2,18 +2,18 @@
 
 INSERT INTO products (slug, title, year, medium, dimensions, description, collection, featured, sort_order)
 VALUES
-  ('low-water', 'Low Water', 2025, 'Oil on linen', '122 × 152 cm',
+  ('low-water', 'Low Water', 2025, 'Acrylic on Canvas', '122 × 152 cm',
    'Placeholder description. A few sentences about the piece help buyers connect with it.',
-   'Tidewater', true, 10),
-  ('marsh-edge', 'Marsh Edge', 2025, 'Oil on linen', '91 × 76 cm', NULL, 'Tidewater', true, 20),
-  ('slack-tide', 'Slack Tide', 2024, 'Gouache on panel', '30 × 30 cm', NULL, 'Tidewater', false, 30),
-  ('estuary-study', 'Estuary Study', 2024, 'Gouache on paper', '21 × 30 cm', NULL, 'Tidewater', false, 40),
-  ('porch-light', 'Porch Light', 2025, 'Charcoal on paper', '56 × 76 cm',
-   'Placeholder description for a drawing.', 'Night drawings', true, 50),
-  ('streetlamp', 'Streetlamp, 2 a.m.', 2024, 'Charcoal on paper', '56 × 76 cm', NULL, 'Night drawings', true, 60),
-  ('overpass', 'Overpass', 2024, 'Compressed charcoal on paper', '76 × 102 cm', NULL, 'Night drawings', false, 70),
-  ('pear-study', 'Pear Study', 2023, 'Oil on panel', '20 × 25 cm', NULL, 'Studies', true, 80),
-  ('window-study', 'Window Study', 2023, 'Oil on panel', '25 × 20 cm', NULL, 'Studies', false, 90)
+   'Paintings', true, 10),
+  ('marsh-edge', 'Marsh Edge', 2025, 'Acrylic on Canvas', '91 × 76 cm', NULL, 'Paintings', true, 20),
+  ('slack-tide', 'Slack Tide', 2024, 'Acrylic on Canvas', '30 × 30 cm', NULL, 'Paintings', false, 30),
+  ('estuary-study', 'Estuary Study', 2024, 'Acrylic on Canvas', '21 × 30 cm', NULL, 'Paintings', false, 40),
+  ('porch-light', 'Porch Light', 2025, 'Acrylic, Pen on paper', '56 × 76 cm',
+   'Placeholder description for a drawing.', 'Illustrations', true, 50),
+  ('streetlamp', 'Streetlamp, 2 a.m.', 2024, 'Acrylic, Pen on paper', '56 × 76 cm', NULL, 'Illustrations', true, 60),
+  ('overpass', 'Overpass', 2024, 'Acrylic, Pen on paper', '76 × 102 cm', NULL, 'Illustrations', false, 70),
+  ('pear-study', 'Pear Study', 2023, 'Acrylic, Pen, Marker on paper', '20 × 25 cm', NULL, 'Studies', true, 80),
+  ('window-study', 'Window Study', 2023, 'Acrylic, Pen, Marker on paper', '25 × 20 cm', NULL, 'Studies', false, 90)
 ON CONFLICT (slug) DO NOTHING;
 
 -- width/height must match each image's real pixel size.
@@ -36,7 +36,11 @@ FROM (VALUES
   ('window-study',  'https://picsum.photos/id/110/1500/1200',  1500, 1200, 'A field and a line of trees seen through a window', 0)
 ) AS i(slug, url, w, h, alt, pos)
 JOIN products p ON p.slug = i.slug
-ON CONFLICT (product_id, position) DO NOTHING;
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM product_images existing
+  WHERE existing.product_id = p.id AND existing.position = i.pos
+);
 
 -- Originals (one of one). inventory 0 = sold.
 INSERT INTO variants (product_id, name, kind, price_cents, inventory, position)
