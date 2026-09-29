@@ -2090,7 +2090,8 @@ export async function listCollectionNames(): Promise<string[]> {
 Append to `app/(admin)/admin/actions.ts`:
 
 ```ts
-import { getProductForAdmin, listCollectionNames, updateProduct } from "@/lib/admin/products";
+// listCollectionNames is not imported here: the action does not use it, only the page does.
+import { getProductForAdmin, updateProduct } from "@/lib/admin/products";
 
 function optionalText(formData: FormData, key: string): string | null {
   const value = String(formData.get(key) ?? "").trim();
