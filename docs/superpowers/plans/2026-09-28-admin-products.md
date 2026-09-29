@@ -573,25 +573,43 @@ Expected: `product_images_product_id_position_key|t` (note `t` — deferrable), 
 
 - [ ] **Step 5: Prove reordering now works**
 
-This is the behaviour migration 001 exists for. Run:
+This is the behaviour migration 001 exists for.
+
+**Update by `id`, never by `position`.** A `WHERE position = n` clause matches rows an earlier
+statement in the same transaction already moved, so it clobbers them — and it is easy to write a
+sequence that leaves a genuine duplicate at `COMMIT`, which looks identical to "the migration
+didn't work". This is also why `applyImagePositions` in Task 15 keys its updates on `id`.
+
+First record the current ids and positions:
+
+```bash
+docker exec art-store-postgres psql -U postgres -d art_store -c \
+  "SELECT id, position FROM product_images WHERE product_id = 1 ORDER BY position;"
+```
+
+With the seed data this is `id 3 → 0`, `id 2 → 1`, `id 1 → 2`. Swap the first two by id:
 
 ```bash
 docker exec art-store-postgres psql -U postgres -d art_store -c \
   "BEGIN;
-   UPDATE product_images SET position = 1 WHERE product_id = 1 AND position = 0;
-   UPDATE product_images SET position = 0 WHERE product_id = 1 AND position = 2;
+   UPDATE product_images SET position = 1 WHERE id = 3;
+   UPDATE product_images SET position = 0 WHERE id = 2;
    COMMIT;"
 ```
 
-Expected: `COMMIT`, with no unique-violation error. Then restore the seed order:
+After the first statement both rows sit at position 1 — the transient duplicate that a
+non-deferrable constraint would reject outright. Expected: `COMMIT` with no unique violation, and
+the final order `id 2 → 0`, `id 3 → 1`, `id 1 → 2`. Then restore the seed order:
 
 ```bash
 docker exec art-store-postgres psql -U postgres -d art_store -c \
   "BEGIN;
-   UPDATE product_images SET position = 2 WHERE product_id = 1 AND position = 0;
-   UPDATE product_images SET position = 0 WHERE product_id = 1 AND position = 1;
+   UPDATE product_images SET position = 1 WHERE id = 2;
+   UPDATE product_images SET position = 0 WHERE id = 3;
    COMMIT;"
 ```
+
+If your ids differ from the seed values above, substitute the ids from the `SELECT`.
 
 - [ ] **Step 6: Run the second migration pass to confirm idempotency**
 
