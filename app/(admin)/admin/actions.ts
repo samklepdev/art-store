@@ -14,6 +14,15 @@ import {
   updateProduct,
 } from "@/lib/admin/products";
 import { slugify } from "@/lib/admin/slug";
+import { parseMoney } from "@/lib/money";
+import {
+  countOrderItems,
+  createVariant,
+  deleteVariant,
+  productIdForVariant,
+  updateVariant,
+  type VariantInput,
+} from "@/lib/admin/variants";
 
 export type ActionResult = { ok: true } | { ok: false; error: string; field?: string };
 
@@ -175,5 +184,115 @@ export async function updateProductAction(
   await revalidateStorefront(slugs);
   revalidatePath("/admin");
   revalidatePath(`/admin/products/${id}`);
+  return { ok: true };
+}
+
+function readVariantInput(formData: FormData): VariantInput | ActionResult {
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "A format name is required.", field: "name" };
+
+  const kindRaw = String(formData.get("kind") ?? "");
+  if (kindRaw !== "original" && kindRaw !== "print") {
+    return { ok: false, error: "Choose original or print.", field: "kind" };
+  }
+
+  const priceCents = parseMoney(String(formData.get("price") ?? ""));
+  if (priceCents === null) {
+    return { ok: false, error: "Enter a price like 220 or 220.50.", field: "price" };
+  }
+
+  const compareRaw = String(formData.get("compareAt") ?? "").trim();
+  let compareAtCents: number | null = null;
+  if (compareRaw !== "") {
+    compareAtCents = parseMoney(compareRaw);
+    if (compareAtCents === null) {
+      return { ok: false, error: "Enter a compare-at price like 260.", field: "compareAt" };
+    }
+    if (compareAtCents <= priceCents) {
+      return {
+        ok: false,
+        error: "The compare-at price must be higher than the price.",
+        field: "compareAt",
+      };
+    }
+  }
+
+  // Tri-state inventory: the checkbox is the only way to express NULL.
+  let inventory: number | null = null;
+  if (formData.get("madeToOrder") !== "on") {
+    const raw = String(formData.get("inventory") ?? "").trim();
+    inventory = raw === "" ? 0 : Number(raw);
+    if (!Number.isInteger(inventory) || inventory < 0) {
+      return { ok: false, error: "Stock must be 0 or a whole number.", field: "inventory" };
+    }
+  }
+
+  const positionRaw = String(formData.get("position") ?? "").trim();
+  const position = positionRaw === "" ? 0 : Number(positionRaw);
+  if (!Number.isInteger(position)) {
+    return { ok: false, error: "Position must be a whole number.", field: "position" };
+  }
+
+  const sku = String(formData.get("sku") ?? "").trim() || null;
+
+  return { name, kind: kindRaw, priceCents, compareAtCents, inventory, sku, position };
+}
+
+export async function saveVariantAction(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const productId = Number(formData.get("productId"));
+  if (!Number.isInteger(productId)) return { ok: false, error: "Unknown product." };
+
+  const parsed = readVariantInput(formData);
+  if ("ok" in parsed) return parsed;
+
+  const idRaw = String(formData.get("id") ?? "").trim();
+
+  try {
+    if (idRaw === "") {
+      await createVariant(productId, parsed);
+    } else {
+      const id = Number(idRaw);
+      if (!Number.isInteger(id)) return { ok: false, error: "Unknown format." };
+      await updateVariant(id, parsed);
+    }
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
+  const slug = await slugForId(productId);
+  await revalidateStorefront(slug ? [slug] : []);
+  revalidatePath(`/admin/products/${productId}`);
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function deleteVariantAction(id: number): Promise<ActionResult> {
+  await requireAdmin();
+
+  // Mirrors the unpublish-only rule for products: never sever an order's link
+  // to what was bought. Setting stock to 0 is how you retire a sold format.
+  if ((await countOrderItems(id)) > 0) {
+    return {
+      ok: false,
+      error:
+        "This format has been ordered, so it can't be removed. Set its stock to 0 to stop selling it.",
+    };
+  }
+
+  const productId = await productIdForVariant(id);
+  await deleteVariant(id);
+  if (productId !== null) {
+    const slug = await slugForId(productId);
+    await revalidateStorefront(slug ? [slug] : []);
+    revalidatePath(`/admin/products/${productId}`);
+  }
+  revalidatePath("/admin");
   return { ok: true };
 }
