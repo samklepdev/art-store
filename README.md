@@ -97,8 +97,9 @@ run in `schema_migrations` and applies each file once inside its own transaction
 - **Tax.** Stripe Tax can be enabled with `automatic_tax: { enabled: true }` in
   `app/api/checkout/route.ts` once it's set up in your Stripe dashboard.
 - **Managing orders.** Orders appear in both the Stripe dashboard and the `orders` /
-  `order_items` tables. The admin covers products only — there is no order screen yet, and
-  `orders.status` is never advanced past `paid`.
+  `order_items` tables. The admin has an order screen at `/admin/orders` for viewing paid
+  orders and marking them fulfilled (reversible). Refunds are still issued in the Stripe
+  dashboard — the app never sets the `refunded` status itself.
 - **Editing in two tabs.** Saving a product or a format overwrites the whole row, so if you edit
   the same one in two tabs the second save wins and the first is lost silently. Edit in one tab.
 - **Leftover image files.** Removing an image deletes its database row but leaves the file in the
