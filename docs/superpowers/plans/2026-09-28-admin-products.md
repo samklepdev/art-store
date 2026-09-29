@@ -3872,6 +3872,8 @@ admin screen is now only true of orders:
 - **Managing orders.** Orders appear in both the Stripe dashboard and the `orders` /
   `order_items` tables. The admin covers products only — there is no order screen yet, and
   `orders.status` is never advanced past `paid`.
+- **Editing in two tabs.** Saving a product or a format overwrites the whole row, so if you edit
+  the same one in two tabs the second save wins and the first is lost silently. Edit in one tab.
 ```
 
 - [ ] **Step 4: Add a database changes section**
@@ -3935,6 +3937,11 @@ Expected: `200` for the four storefront paths and `307` for `/admin` when signed
 
 Stated in the spec and deliberately not addressed here:
 
+- **No optimistic concurrency on updates.** `updateProductAction` and `updateVariant` read the
+  row then do a full-row `UPDATE ... WHERE id = $1` with no version check, so editing the same
+  product in two tabs means the second save silently overwrites the first. Accepted for Phase 1:
+  this is a single-artist store (one shared password by design), the race is self-inflicted, and
+  the damage is a redoable edit rather than corruption. Documented in the README.
 - Tests cover pure functions only. The SQL in `lib/admin/*` and the deferrable-constraint
   behaviour have no automated coverage — they are verified by hand in Tasks 5, 9, 11, 12 and 15.
   Integration tests against a throwaway database are a follow-on.
