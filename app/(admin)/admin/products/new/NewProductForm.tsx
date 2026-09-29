@@ -14,10 +14,20 @@ export function NewProductForm() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
 
-  const error = state && !state.ok ? state : null;
+  // `state` only changes on a server response, so gate the error on whether the
+  // user has edited since: otherwise a message keeps describing a value that is
+  // no longer on screen. One onChange on the <form> covers every field, since
+  // React change events bubble.
+  const [edited, setEdited] = useState(false);
+  const error = !edited && state && !state.ok ? state : null;
+
+  const submit = (formData: FormData) => {
+    setEdited(false);
+    formAction(formData);
+  };
 
   return (
-    <form action={formAction} className={styles.form}>
+    <form action={submit} onChange={() => setEdited(true)} className={styles.form}>
       <div className={styles.field}>
         <label className={styles.label} htmlFor="title">
           Title
