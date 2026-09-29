@@ -13,9 +13,9 @@
 ## Global Constraints
 
 - Every admin Server Action calls `requireAdmin()` as its first statement. The proxy is not the authorization boundary.
-- `proxy.ts` runs on the Edge runtime: no Node `crypto` module, no `pg`. It may import only `lib/admin/session.ts`.
+- `proxy.ts` runs on the **Node.js runtime** in Next 16 (it is not Edge, and the `runtime` config option is unavailable there — setting it throws). It may still import only `lib/admin/session.ts`: not because Node APIs are unavailable, but to keep the request-path guard free of `pg` and `next/headers`.
 - **Next 16 renamed Middleware to Proxy.** The file is `proxy.ts` at the project root, exporting a named `proxy` function (or a default export) plus `config.matcher` — not `middleware.ts`/`export function middleware`. Confirmed in `node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md`.
-- All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it has to load in the Edge proxy.
+- All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it is imported by `proxy.ts`, which sits outside the normal app module graph.
 - Money is stored as integer cents. Never store or compare floats.
 - `inventory` is tri-state: `NULL` = made to order, `0` = sold out, `n` = limited. Forms must be able to send `NULL`.
 - Product removal is unpublish only. No task in this plan issues `DELETE FROM products`. Variants and images may be deleted, but a variant that appears in `order_items` must be refused — `order_items.variant_id` is `ON DELETE SET NULL`, so deleting it would sever an order's link to what was bought.
@@ -40,7 +40,7 @@
 | `scripts/migrate.mjs` | Numbered migration runner |
 | `db/migrations/001-deferrable-image-position.sql` | Make image position constraint deferrable |
 | `db/migrations/002-products-updated-at.sql` | Add `products.updated_at` |
-| `lib/admin/session.ts` | Web Crypto HMAC sign/verify. Edge-safe, no DB |
+| `lib/admin/session.ts` | Web Crypto HMAC sign/verify. Import-free, no DB |
 | `lib/admin/auth.ts` | Password check, cookie set/clear, `requireAdmin()` |
 | `lib/admin/errors.ts` | Postgres error code → user-facing message |
 | `lib/admin/products.ts` | Product reads for admin + inserts/updates |
@@ -750,7 +750,7 @@ git commit -m "Move storefront into a route group so the root layout holds no ch
   - `signSession(expiresAt: number, secret: string): Promise<string>`
   - `verifySession(token: string, secret: string, now?: number): Promise<boolean>`
 
-  Uses Web Crypto only, so it loads in both the Edge proxy and Node. Must not import `server-only` or `pg`. Used by Tasks 8 and 9.
+  Uses Web Crypto only. Kept import-free so it is trivially unit-testable and safe to load from `proxy.ts`. Must not import `server-only` or `pg`. Used by Tasks 8 and 9.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -826,9 +826,10 @@ Expected: FAIL — cannot find module `./session`.
 Create `lib/admin/session.ts`:
 
 ```ts
-// Web Crypto only: this module is imported by proxy.ts, which runs on the
-// Edge runtime where Node's `crypto` module does not exist. Do not add
-// `server-only` or any database import here.
+// Web Crypto only, and deliberately import-free: this module is imported by
+// proxy.ts, which runs on every matched request. Web Crypto works in both Node
+// and Edge, so this stays portable. Do not add `server-only` or any database
+// import here.
 
 export const SESSION_COOKIE = "admin_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -901,7 +902,7 @@ Expected: PASS — 7 tests.
 
 ```bash
 git add lib/admin/session.ts lib/admin/session.test.ts
-git commit -m "Add Edge-safe signed session tokens for the admin"
+git commit -m "Add signed session tokens for the admin"
 ```
 
 ---
