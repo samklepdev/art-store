@@ -2670,11 +2670,7 @@ function VariantRow({
   onDone?: () => void;
 }) {
   const [state, formAction, pending] = useActionState<ActionResult | null, FormData>(
-    async (previous, formData) => {
-      const result = await saveVariantAction(previous, formData);
-      if (result.ok) onDone?.();
-      return result;
-    },
+    saveVariantAction,
     null,
   );
   const [madeToOrder, setMadeToOrder] = useState(variant ? variant.inventory === null : false);
@@ -2690,8 +2686,16 @@ function VariantRow({
   // renders that as a real endpoint in the DOM's action attribute, so the form
   // still submits before JS hydrates. A wrapped closure cannot be serialised
   // that way and silently costs progressive enhancement.
+  //
+  // onDone likewise belongs in the effect, NOT in an action wrapper: calling it
+  // from inside the reducer unmounts this component while its own transition is
+  // still settling.
   const [edited, setEdited] = useState(false);
-  useEffect(() => setEdited(false), [state]);
+  useEffect(() => {
+    setEdited(false);
+    setDeleteError(null);
+    if (state?.ok) onDone?.();
+  }, [state]);
   const error = !edited && state && !state.ok ? state : null;
 
   return (
