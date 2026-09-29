@@ -17,7 +17,7 @@
 - All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it has to load in Edge middleware.
 - Money is stored as integer cents. Never store or compare floats.
 - `inventory` is tri-state: `NULL` = made to order, `0` = sold out, `n` = limited. Forms must be able to send `NULL`.
-- Product removal is unpublish only. No task in this plan issues `DELETE FROM products`.
+- Product removal is unpublish only. No task in this plan issues `DELETE FROM products`. Variants and images may be deleted, but a variant that appears in `order_items` must be refused — `order_items.variant_id` is `ON DELETE SET NULL`, so deleting it would sever an order's link to what was bought.
 - `schema.sql` is the baseline and is never edited. All schema change goes in `db/migrations/NNN-name.sql`.
 - Reuse the existing global CSS utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-block`, `.page-width`, `.visually-hidden`) rather than restyling buttons. Per-component styles go in a sibling `*.module.css`.
 - Path alias is `@/*` → repo root.
@@ -1280,7 +1280,7 @@ git commit -m "Gate /admin behind a signed session cookie"
 - Consumes: `requireAdmin` (Task 8), `formatMoney` from `@/lib/money`, `products.updated_at` (Task 5)
 - Produces:
   - `@/lib/admin/products`: `type AdminProductRow`, `listAllProducts(): Promise<AdminProductRow[]>`, `setPublished(id: number, published: boolean): Promise<void>`, `setFeatured(id: number, featured: boolean): Promise<void>`
-  - `actions.ts`: `togglePublished`, `toggleFeatured`, and the shared `revalidateStorefront(slugs: string[])` helper used by Tasks 10–15
+  - `actions.ts`: `togglePublished`, `toggleFeatured`, and the shared **module-private** `revalidateStorefront(slugs: string[])` helper used by Tasks 10–15. It must not be exported — see the note in its source below.
 
 - [ ] **Step 1: Write the admin product queries**
 
@@ -1362,8 +1362,12 @@ import { setFeatured, setPublished, slugForId } from "@/lib/admin/products";
 /**
  * Refreshes every storefront path a product change can affect. Pass both the
  * old and new slug when a slug changes, or the old URL keeps serving stale HTML.
+ *
+ * NOT exported: every export from a "use server" module is a callable POST
+ * endpoint, and this helper has no requireAdmin() guard of its own. It is used
+ * only from actions in this file.
  */
-export async function revalidateStorefront(slugs: string[]): Promise<void> {
+async function revalidateStorefront(slugs: string[]): Promise<void> {
   revalidatePath("/");
   revalidatePath("/shop");
   for (const slug of slugs) revalidatePath(`/products/${slug}`);
@@ -2313,7 +2317,7 @@ git commit -m "Add the product details editor"
 
 **Interfaces:**
 - Consumes: `parseMoney` (Task 1), `messageForDbError`, `requireAdmin`, `ActionResult`, `revalidateStorefront`
-- Produces: in `@/lib/admin/variants` — `type AdminVariant`, `type VariantInput`, `listVariants(productId)`, `createVariant(productId, input)`, `updateVariant(id, input)`, `deleteVariant(id)`; plus `saveVariantAction` and `deleteVariantAction`.
+- Produces: in `@/lib/admin/variants` — `type AdminVariant`, `type VariantInput`, `listVariants(productId)`, `createVariant(productId, input)`, `updateVariant(id, input)`, `deleteVariant(id)`, `countOrderItems(variantId)`; plus `saveVariantAction(prev, formData): Promise<ActionResult>` and `deleteVariantAction(id): Promise<ActionResult>` — the delete returns an error rather than throwing when the format has been ordered.
 
 - [ ] **Step 1: Write the variant queries**
 
@@ -2391,6 +2395,22 @@ export async function deleteVariant(id: number): Promise<void> {
   await pool.query(`DELETE FROM variants WHERE id = $1`, [id]);
 }
 
+/**
+ * How many order lines reference this format.
+ *
+ * order_items.variant_id is ON DELETE SET NULL, so deleting a format someone
+ * bought would null that order line's link to what was purchased — the same
+ * harm that makes product removal unpublish-only. Callers must refuse the
+ * delete when this is greater than zero.
+ */
+export async function countOrderItems(variantId: number): Promise<number> {
+  const { rows } = await pool.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM order_items WHERE variant_id = $1`,
+    [variantId],
+  );
+  return rows[0]?.n ?? 0;
+}
+
 export async function productIdForVariant(id: number): Promise<number | null> {
   const { rows } = await pool.query<{ product_id: number }>(
     `SELECT product_id FROM variants WHERE id = $1`,
@@ -2407,6 +2427,7 @@ Append to `app/(admin)/admin/actions.ts`:
 ```ts
 import { parseMoney } from "@/lib/money";
 import {
+  countOrderItems,
   createVariant,
   deleteVariant,
   productIdForVariant,
@@ -2500,8 +2521,19 @@ export async function saveVariantAction(
   return { ok: true };
 }
 
-export async function deleteVariantAction(id: number): Promise<void> {
+export async function deleteVariantAction(id: number): Promise<ActionResult> {
   await requireAdmin();
+
+  // Mirrors the unpublish-only rule for products: never sever an order's link
+  // to what was bought. Setting stock to 0 is how you retire a sold format.
+  if ((await countOrderItems(id)) > 0) {
+    return {
+      ok: false,
+      error:
+        "This format has been ordered, so it can't be removed. Set its stock to 0 to stop selling it.",
+    };
+  }
+
   const productId = await productIdForVariant(id);
   await deleteVariant(id);
   if (productId !== null) {
@@ -2510,6 +2542,7 @@ export async function deleteVariantAction(id: number): Promise<void> {
     revalidatePath(`/admin/products/${productId}`);
   }
   revalidatePath("/admin");
+  return { ok: true };
 }
 ```
 
@@ -2546,6 +2579,7 @@ function VariantRow({
   );
   const [madeToOrder, setMadeToOrder] = useState(variant ? variant.inventory === null : false);
   const [deleting, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const error = state && !state.ok ? state : null;
 
   return (
@@ -2673,7 +2707,12 @@ function VariantRow({
             type="button"
             className="btn btn-secondary"
             disabled={deleting}
-            onClick={() => startDelete(() => void deleteVariantAction(variant.id))}
+            onClick={() =>
+              startDelete(async () => {
+                const result = await deleteVariantAction(variant.id);
+                setDeleteError(result.ok ? null : result.error);
+              })
+            }
           >
             {deleting ? "Removing…" : "Remove"}
           </button>
@@ -2682,6 +2721,11 @@ function VariantRow({
         {error && (
           <p className={form.error} role="alert">
             {error.error}
+          </p>
+        )}
+        {deleteError && (
+          <p className={form.error} role="alert">
+            {deleteError}
           </p>
         )}
       </div>
@@ -2793,6 +2837,27 @@ Add a second format `Print, 12 × 16 in`, kind Print, price `85`, and tick **Mad
 Test the two-column CHECK: on the Original row set compare-at to `100` (below the price) and save. Expected: "The compare-at price must be higher than the price." Test the unique constraint: add another format also named `Original`. Expected: "This product already has a format with that name."
 
 Now publish the product from `/admin` and confirm it appears on `/shop` with the correct price range, and that the print shows "Printed to order" on the product page while the original shows "Available".
+
+Finally, verify the order guard. Fabricate an order line against one of the formats, then try to remove it:
+
+```bash
+VARIANT=$(docker exec art-store-postgres psql -U postgres -d art_store -tAc \
+  "select id from variants order by id desc limit 1")
+docker exec art-store-postgres psql -U postgres -d art_store -c \
+  "INSERT INTO orders (stripe_session_id, currency, subtotal_cents, shipping_cents, total_cents)
+   VALUES ('cs_test_guard', 'usd', 100, 0, 100);
+   INSERT INTO order_items (order_id, variant_id, description, quantity, unit_price_cents, total_cents)
+   SELECT id, $VARIANT, 'guard test', 1, 100, 100 FROM orders WHERE stripe_session_id = 'cs_test_guard';"
+```
+
+Reload the edit page and click "Remove" on that format. Expected: the inline error "This format has been ordered, so it can't be removed. Set its stock to 0 to stop selling it." and the format still present after a reload. Then clean up:
+
+```bash
+docker exec art-store-postgres psql -U postgres -d art_store -c \
+  "DELETE FROM orders WHERE stripe_session_id = 'cs_test_guard';"
+```
+
+Confirm "Remove" now succeeds on that format.
 
 - [ ] **Step 7: Commit**
 
