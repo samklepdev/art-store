@@ -4,7 +4,7 @@
 
 **Goal:** Give the store a password-protected admin at `/admin` for creating and editing products, variants and images, so adding a painting no longer requires hand-written SQL.
 
-**Architecture:** Storefront files move into an `app/(storefront)/` route group so `app/layout.tsx` can stop rendering shop chrome; admin lives in a parallel `app/(admin)/` group. Mutations are Server Actions returning a typed result, guarded by `requireAdmin()` inside every action (middleware only handles redirect UX). Images upload straight from the browser to S3-compatible storage via a presigned PUT, so file bytes never pass through the app.
+**Architecture:** Storefront files move into an `app/(storefront)/` route group so `app/layout.tsx` can stop rendering shop chrome; admin lives in a parallel `app/(admin)/` group. Mutations are Server Actions returning a typed result, guarded by `requireAdmin()` inside every action (proxy only handles redirect UX). Images upload straight from the browser to S3-compatible storage via a presigned PUT, so file bytes never pass through the app.
 
 **Tech Stack:** Next.js 16 (App Router, Turbopack), React 19, TypeScript, Postgres via `pg`, CSS Modules, Vitest, `@aws-sdk/client-s3`.
 
@@ -12,9 +12,10 @@
 
 ## Global Constraints
 
-- Every admin Server Action calls `requireAdmin()` as its first statement. Middleware is not the authorization boundary.
-- `middleware.ts` runs on the Edge runtime: no Node `crypto` module, no `pg`. It may import only `lib/admin/session.ts`.
-- All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it has to load in Edge middleware.
+- Every admin Server Action calls `requireAdmin()` as its first statement. The proxy is not the authorization boundary.
+- `proxy.ts` runs on the Edge runtime: no Node `crypto` module, no `pg`. It may import only `lib/admin/session.ts`.
+- **Next 16 renamed Middleware to Proxy.** The file is `proxy.ts` at the project root, exporting a named `proxy` function (or a default export) plus `config.matcher` — not `middleware.ts`/`export function middleware`. Confirmed in `node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md`.
+- All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it has to load in the Edge proxy.
 - Money is stored as integer cents. Never store or compare floats.
 - `inventory` is tri-state: `NULL` = made to order, `0` = sold out, `n` = limited. Forms must be able to send `NULL`.
 - Product removal is unpublish only. No task in this plan issues `DELETE FROM products`. Variants and images may be deleted, but a variant that appears in `order_items` must be refused — `order_items.variant_id` is `ON DELETE SET NULL`, so deleting it would sever an order's link to what was bought.
@@ -47,7 +48,7 @@
 | `lib/admin/images.ts` | Image CRUD + position reordering |
 | `lib/admin/reorder.ts` | Pure reorder algorithm |
 | `lib/admin/storage.ts` | S3 presign + key naming |
-| `middleware.ts` | Redirects unauthenticated `/admin/*` to login |
+| `proxy.ts` | Redirects unauthenticated `/admin/*` to login (Next 16 name for Middleware) |
 | `app/(storefront)/layout.tsx` | Cart provider + Header + Footer + CartDrawer |
 | `app/(admin)/layout.tsx` | Admin chrome |
 | `app/(admin)/error.tsx` | Admin error boundary |
@@ -749,7 +750,7 @@ git commit -m "Move storefront into a route group so the root layout holds no ch
   - `signSession(expiresAt: number, secret: string): Promise<string>`
   - `verifySession(token: string, secret: string, now?: number): Promise<boolean>`
 
-  Uses Web Crypto only, so it loads in both Edge middleware and Node. Must not import `server-only` or `pg`. Used by Tasks 8 and 9.
+  Uses Web Crypto only, so it loads in both the Edge proxy and Node. Must not import `server-only` or `pg`. Used by Tasks 8 and 9.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -825,7 +826,7 @@ Expected: FAIL — cannot find module `./session`.
 Create `lib/admin/session.ts`:
 
 ```ts
-// Web Crypto only: this module is imported by middleware.ts, which runs on the
+// Web Crypto only: this module is imported by proxy.ts, which runs on the
 // Edge runtime where Node's `crypto` module does not exist. Do not add
 // `server-only` or any database import here.
 
@@ -905,10 +906,10 @@ git commit -m "Add Edge-safe signed session tokens for the admin"
 
 ---
 
-### Task 8: Auth gate — middleware, login, admin shell
+### Task 8: Auth gate — proxy, login, admin shell
 
 **Files:**
-- Create: `lib/admin/auth.ts`, `middleware.ts`, `app/(admin)/layout.tsx`, `app/(admin)/layout.module.css`, `app/(admin)/error.tsx`, `app/(admin)/admin/actions.ts`, `app/(admin)/admin/login/page.tsx`, `app/(admin)/admin/login/LoginForm.tsx`, `app/(admin)/admin/login/login.module.css`, `app/(admin)/admin/page.tsx`
+- Create: `lib/admin/auth.ts`, `proxy.ts`, `app/(admin)/layout.tsx`, `app/(admin)/layout.module.css`, `app/(admin)/error.tsx`, `app/(admin)/admin/actions.ts`, `app/(admin)/admin/login/page.tsx`, `app/(admin)/admin/login/LoginForm.tsx`, `app/(admin)/admin/login/login.module.css`, `app/(admin)/admin/page.tsx`
 - Modify: `.env.example`
 
 **Interfaces:**
@@ -991,7 +992,7 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 /**
- * Every admin action and page calls this first. Middleware only handles
+ * Every admin action and page calls this first. The proxy only handles
  * redirect UX — a Server Action is a POST endpoint whose authorization must
  * not depend on route matching.
  */
@@ -1000,15 +1001,15 @@ export async function requireAdmin(): Promise<void> {
 }
 ```
 
-- [ ] **Step 3: Write the middleware**
+- [ ] **Step 3: Write the proxy**
 
-Create `middleware.ts` at the repo root:
+Create `proxy.ts` at the repo root. Next 16 renamed Middleware to Proxy; the export must be named `proxy`:
 
 ```ts
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/admin/session";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // The login page itself must stay reachable or this redirects forever.
   if (request.nextUrl.pathname === "/admin/login") return NextResponse.next();
 
@@ -1291,7 +1292,7 @@ Then in a browser: open `http://localhost:3000/admin`, confirm it lands on the l
 - [ ] **Step 10: Commit**
 
 ```bash
-git add lib/admin/auth.ts middleware.ts "app/(admin)" .env.example
+git add lib/admin/auth.ts proxy.ts "app/(admin)" .env.example
 git commit -m "Gate /admin behind a signed session cookie"
 ```
 
