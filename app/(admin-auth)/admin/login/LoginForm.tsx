@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { login, type ActionResult } from "../actions";
+import { login, type ActionResult } from "@/app/(admin)/admin/actions";
 import styles from "./login.module.css";
 
 export function LoginForm() {
