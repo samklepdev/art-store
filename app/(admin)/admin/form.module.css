@@ -1,0 +1,92 @@
+.form {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+  margin: 1.5rem 0;
+}
+
+.section {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+}
+
+.sectionHeading {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border, #d4d4d4);
+  border-radius: 0.375rem;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+.textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.prefixed {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.prefix {
+  color: var(--muted, #737373);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted, #737373);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--danger, #b91c1c);
+}
+
+.success {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #166534;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
