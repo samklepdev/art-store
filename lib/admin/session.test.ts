@@ -41,7 +41,7 @@ describe("session tokens", () => {
   });
 
   it("rejects malformed tokens", async () => {
-    for (const bad of ["", ".", "abc", "abc.", ".abc", "not-a-number.aaaa"]) {
+    for (const bad of ["", ".", "abc", "abc.", ".abc", "not-a-number.aaaa", "5.!!!!"]) {
       expect(await verifySession(bad, SECRET)).toBe(false);
     }
   });
