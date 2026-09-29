@@ -50,3 +50,48 @@ export type Collection = {
   count: number;
   image: ProductImage | null;
 };
+
+export type OrderStatus = "paid" | "fulfilled" | "refunded";
+
+export type OrderSummary = {
+  id: number;
+  email: string | null;
+  customerName: string | null;
+  currency: string;
+  totalCents: number;
+  status: OrderStatus;
+  itemCount: number;
+  createdAt: string; // ISO
+};
+
+export type OrderItem = {
+  id: number;
+  description: string;
+  quantity: number;
+  unitPriceCents: number;
+  totalCents: number;
+};
+
+export type ShippingAddress = {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+};
+
+export type OrderDetail = {
+  id: number;
+  stripeSessionId: string;
+  email: string | null;
+  customerName: string | null;
+  currency: string;
+  subtotalCents: number;
+  shippingCents: number;
+  totalCents: number;
+  shippingAddress: ShippingAddress | null;
+  status: OrderStatus;
+  createdAt: string; // ISO
+  items: OrderItem[];
+};
