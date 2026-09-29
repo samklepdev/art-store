@@ -24,11 +24,21 @@ formats, cart drawer, sale pricing, sold-out states, collections and orders.
 
 ```bash
 npm install
-cp .env.example .env.local        # fill in DATABASE_URL and the Stripe keys
-createdb art_store
-DATABASE_URL=postgres://... npm run db:setup
+cp .env.example .env.local        # fill in the Stripe keys, admin password and bucket
+docker compose up -d              # Postgres on :5432, schema and seed applied on first boot
+npm run db:migrate                # brings any existing database up to date
 npm run dev
 ```
+
+Generate the admin secrets with:
+
+```bash
+printf '\nADMIN_PASSWORD=%s\nADMIN_SESSION_SECRET=%s\n' \
+  "$(openssl rand -base64 18)" "$(openssl rand -base64 32)" >> .env.local
+```
+
+Without Docker, create the database yourself and run `npm run db:setup`, which applies the
+schema, the seed data and every migration.
 
 In a second terminal, forward Stripe webhooks to your machine (requires the Stripe CLI):
 
@@ -46,37 +56,37 @@ In production, add a webhook endpoint in the Stripe dashboard pointing to
 
 ## Adding products
 
-```sql
-INSERT INTO products (slug, title, year, medium, dimensions, collection, featured)
-VALUES ('harbor-at-dusk', 'Harbor at Dusk', 2026, 'Oil on linen', '90 × 120 cm', 'Tidewater', true);
+Sign in at `/admin` with your `ADMIN_PASSWORD`.
 
-INSERT INTO product_images (product_id, url, width, height, alt_text, position)
-SELECT id, '/art/harbor-at-dusk.jpg', 2400, 1800, 'Boats silhouetted against an orange sky', 0
-FROM products WHERE slug = 'harbor-at-dusk';
+1. **New product** — give it a title. The web address is derived from the title and stays
+   editable. It is created as a draft, so nothing is public yet.
+2. **Details** — year, medium, dimensions, description and collection. Collection is free text
+   with a list of names you have already used, so pick from it rather than retyping.
+3. **Formats** — one row per purchasable option. Use *Made to order* for prints with no stock
+   limit; that stores no quantity at all, which is different from 0 (sold out). Set *Compare at*
+   above the price to show something as on sale.
+4. **Images** — upload straight from the file picker. Pixel dimensions are read from the file, so
+   there is no need to run `sips`. The first image is the main one and the second shows on hover
+   in the shop grid; reorder with the arrows.
+5. **Publish** — tick *Published* on the details form, or use the Publish button in the list.
 
-INSERT INTO variants (product_id, name, kind, price_cents, inventory, position)
-SELECT id, v.name, v.kind, v.price, v.inventory, v.pos
-FROM products, (VALUES
-  ('Original', 'original', 220000, 1, 0),
-  ('Print, 12 × 16 in', 'print', 8500, NULL, 1)
-) AS v(name, kind, price, inventory, pos)
-WHERE slug = 'harbor-at-dusk';
-```
+Products are never deleted from the admin, only unpublished — that keeps past orders linked to
+what was actually bought. To clear the seeded placeholders:
 
-- Prices are in cents.
-- `inventory` is `1` for an original, `NULL` for made-to-order prints, or a number for limited editions.
-- Image `width` and `height` must be the real pixel size. Get them with
-  `sips -g pixelWidth -g pixelHeight file.jpg` (macOS) or `identify file.jpg` (ImageMagick).
-- Setting `compare_at_cents` higher than `price_cents` shows the item as on sale.
-
-To remove the placeholders:
 `DELETE FROM products WHERE slug IN ('low-water','marsh-edge','slack-tide','estuary-study','porch-light','streetlamp','overpass','pear-study','window-study');`
+
 Then drop the picsum hosts from `next.config.ts`.
 
 ## Settings
 
 `lib/site.ts` holds your name, tagline, email, currency, shipping rate, the free-shipping
 threshold and the countries you ship to. Colors live at the top of `app/globals.css`.
+
+## Database changes
+
+`db/schema.sql` is the baseline and is not edited. Every change since goes in
+`db/migrations/NNN-name.sql` and is applied by `npm run db:migrate`, which records what it has
+run in `schema_migrations` and applies each file once inside its own transaction.
 
 ## Things to know
 
@@ -87,6 +97,9 @@ threshold and the countries you ship to. Colors live at the top of `app/globals.
 - **Tax.** Stripe Tax can be enabled with `automatic_tax: { enabled: true }` in
   `app/api/checkout/route.ts` once it's set up in your Stripe dashboard.
 - **Managing orders.** Orders appear in both the Stripe dashboard and the `orders` /
-  `order_items` tables. There's no admin screen yet.
+  `order_items` tables. The admin covers products only — there is no order screen yet, and
+  `orders.status` is never advanced past `paid`.
+- **Editing in two tabs.** Saving a product or a format overwrites the whole row, so if you edit
+  the same one in two tabs the second save wins and the first is lost silently. Edit in one tab.
 - **Upgrading from the portfolio version:** this uses new tables (`products`, `variants`,
   `product_images`, `orders`). The old `artworks` table isn't used, and you can drop it.
