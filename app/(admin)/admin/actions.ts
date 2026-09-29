@@ -42,20 +42,34 @@ async function revalidateStorefront(slugs: string[]): Promise<void> {
   for (const slug of slugs) revalidatePath(`/products/${slug}`);
 }
 
-export async function togglePublished(id: number, published: boolean): Promise<void> {
+// requireAdmin() stays outside the try: it redirects when the session has
+// expired, and redirect() works by throwing, so a try around it would swallow
+// the navigation. Expected failures are returned as data, never thrown, so the
+// client never needs a catch that could suppress that redirect.
+export async function togglePublished(id: number, published: boolean): Promise<ActionResult> {
   await requireAdmin();
-  await setPublished(id, published);
-  const slug = await slugForId(id);
-  await revalidateStorefront(slug ? [slug] : []);
+  try {
+    await setPublished(id, published);
+    const slug = await slugForId(id);
+    await revalidateStorefront(slug ? [slug] : []);
+  } catch (error) {
+    return { ok: false, error: messageForDbError(error) ?? "Couldn't update. Try again." };
+  }
   revalidatePath("/admin");
+  return { ok: true };
 }
 
-export async function toggleFeatured(id: number, featured: boolean): Promise<void> {
+export async function toggleFeatured(id: number, featured: boolean): Promise<ActionResult> {
   await requireAdmin();
-  await setFeatured(id, featured);
-  const slug = await slugForId(id);
-  await revalidateStorefront(slug ? [slug] : []);
+  try {
+    await setFeatured(id, featured);
+    const slug = await slugForId(id);
+    await revalidateStorefront(slug ? [slug] : []);
+  } catch (error) {
+    return { ok: false, error: messageForDbError(error) ?? "Couldn't update. Try again." };
+  }
   revalidatePath("/admin");
+  return { ok: true };
 }
 
 export async function createProductAction(

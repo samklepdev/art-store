@@ -16,7 +16,7 @@ function priceLabel(row: AdminProductRow): string {
 
 export function ProductRow({ row }: { row: AdminProductRow }) {
   const [pending, startTransition] = useTransition();
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <tr className={styles.row} data-pending={pending || undefined}>
@@ -50,21 +50,24 @@ export function ProductRow({ row }: { row: AdminProductRow }) {
           className="btn btn-secondary"
           disabled={pending}
           onClick={() =>
+            // Await the promise rather than discarding it with `void`: React only holds a
+            // transition pending while the callback's thenable is unsettled, so a
+            // synchronous `undefined` ends it at once and `pending` never shows.
+            // Deliberately no try/catch — togglePublished calls requireAdmin(), which
+            // redirects on an expired session, and a catch here would swallow that
+            // navigation. Expected failures arrive as a returned ActionResult.
             startTransition(async () => {
-              setFailed(false);
-              try {
-                await togglePublished(row.id, !row.published);
-              } catch {
-                setFailed(true);
-              }
+              setError(null);
+              const result = await togglePublished(row.id, !row.published);
+              if (!result.ok) setError(result.error);
             })
           }
         >
           {row.published ? "Unpublish" : "Publish"}
         </button>
-        {failed && (
+        {error && (
           <span className={styles.rowError} role="alert">
-            Couldn&rsquo;t update
+            {error}
           </span>
         )}
       </td>
