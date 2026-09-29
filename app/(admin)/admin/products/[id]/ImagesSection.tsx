@@ -8,6 +8,7 @@ import {
   deleteImageAction,
   moveImageAction,
   updateAltAction,
+  type ActionResult,
 } from "../../actions";
 import form from "../../form.module.css";
 import styles from "./images.module.css";
@@ -34,16 +35,14 @@ function ImageCard({ image, last }: { image: AdminImage; last: boolean }) {
   // Hand the promise to startTransition rather than discarding it with `void`:
   // React only holds a transition pending while the callback's thenable is
   // unsettled, so a synchronous `undefined` ends it at once and `pending` never
-  // shows. The catch stops a failed action from being silent. Safe to catch here
-  // because none of these actions call redirect().
-  const run = (action: () => Promise<unknown>) =>
+  // shows. Deliberately no try/catch — these actions call requireAdmin(), which
+  // redirects on an expired session, and a catch here would swallow that
+  // navigation. Expected failures arrive as a returned ActionResult.
+  const run = (action: () => Promise<ActionResult>) =>
     start(async () => {
       setFailed(false);
-      try {
-        await action();
-      } catch {
-        setFailed(true);
-      }
+      const result = await action();
+      setFailed(!result.ok);
     });
 
   return (

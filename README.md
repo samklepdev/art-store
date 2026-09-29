@@ -101,5 +101,8 @@ run in `schema_migrations` and applies each file once inside its own transaction
   `orders.status` is never advanced past `paid`.
 - **Editing in two tabs.** Saving a product or a format overwrites the whole row, so if you edit
   the same one in two tabs the second save wins and the first is lost silently. Edit in one tab.
+- **Leftover image files.** Removing an image deletes its database row but leaves the file in the
+  bucket (the app's credentials can't delete objects). Harmless — nothing links to it — but the
+  bucket grows over time.
 - **Upgrading from the portfolio version:** this uses new tables (`products`, `variants`,
   `product_images`, `orders`). The old `artworks` table isn't used, and you can drop it.

@@ -363,29 +363,59 @@ export async function addImageAction(input: {
   return { ok: true };
 }
 
-export async function updateAltAction(id: number, alt: string): Promise<void> {
+export async function updateAltAction(id: number, alt: string): Promise<ActionResult> {
   await requireAdmin();
-  await updateImageAlt(id, alt);
+
+  try {
+    await updateImageAlt(id, alt);
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
   const productId = await productIdForImage(id);
   if (productId !== null) await revalidateProduct(productId);
+  return { ok: true };
 }
 
-export async function deleteImageAction(id: number): Promise<void> {
+export async function deleteImageAction(id: number): Promise<ActionResult> {
   await requireAdmin();
+
   const productId = await productIdForImage(id);
-  await deleteImage(id);
+  try {
+    await deleteImage(id);
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
   if (productId !== null) await revalidateProduct(productId);
+  return { ok: true };
 }
 
-export async function moveImageAction(id: number, direction: "up" | "down"): Promise<void> {
+export async function moveImageAction(
+  id: number,
+  direction: "up" | "down",
+): Promise<ActionResult> {
   await requireAdmin();
+
   const productId = await productIdForImage(id);
-  if (productId === null) return;
+  if (productId === null) return { ok: true };
 
   const images = await listImages(productId);
   const positions = moveItem(images, id, direction);
-  if (positions.length === 0) return;
+  if (positions.length === 0) return { ok: true };
 
-  await applyImagePositions(productId, positions);
+  try {
+    await applyImagePositions(productId, positions);
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
   await revalidateProduct(productId);
+  return { ok: true };
 }

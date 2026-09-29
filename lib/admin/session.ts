@@ -1,6 +1,7 @@
-// Web Crypto only: this module is imported by middleware.ts, which runs on the
-// Edge runtime where Node's `crypto` module does not exist. Do not add
-// `server-only` or any database import here.
+// Web Crypto only: this module is imported by proxy.ts (Next 16's renamed
+// Middleware convention), which runs on the Node.js runtime. It stays
+// Web-Crypto-only and free of `pg`/`next/headers` imports so proxy.ts can
+// load it. Do not add `server-only` or any database import here.
 
 export const SESSION_COOKIE = "admin_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
