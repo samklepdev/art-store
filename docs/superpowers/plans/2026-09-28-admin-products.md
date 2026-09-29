@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Every admin Server Action calls `requireAdmin()` as its first statement. The proxy is not the authorization boundary.
+- **`requireAdmin()` redirects, so every action can redirect transitively.** Never wrap an action call in a bare `catch` on the client: `redirect()` throws a `NEXT_REDIRECT`-coded error, and swallowing it turns a correct bounce-to-login into a misleading inline error on a stale, unauthenticated page. Actions must report expected failures by **returning** `ActionResult` instead of throwing, so the client needs no catch and the redirect propagates untouched. Keep `requireAdmin()` and `redirect()` outside any server-side `try` for the same reason.
 - `proxy.ts` runs on the **Node.js runtime** in Next 16 (it is not Edge, and the `runtime` config option is unavailable there — setting it throws). It may still import only `lib/admin/session.ts`: not because Node APIs are unavailable, but to keep the request-path guard free of `pg` and `next/headers`.
 - **Next 16 renamed Middleware to Proxy.** The file is `proxy.ts` at the project root, exporting a named `proxy` function (or a default export) plus `config.matcher` — not `middleware.ts`/`export function middleware`. Confirmed in `node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md`.
 - All files under `lib/admin/` that touch the database start with `import "server-only";`. `lib/admin/session.ts` must **not** — it is imported by `proxy.ts`, which sits outside the normal app module graph.
@@ -1390,6 +1391,7 @@ Append to `app/(admin)/admin/actions.ts`:
 ```ts
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
+import { messageForDbError } from "@/lib/admin/errors";
 import { setFeatured, setPublished, slugForId } from "@/lib/admin/products";
 
 /**
@@ -1406,20 +1408,34 @@ async function revalidateStorefront(slugs: string[]): Promise<void> {
   for (const slug of slugs) revalidatePath(`/products/${slug}`);
 }
 
-export async function togglePublished(id: number, published: boolean): Promise<void> {
+// requireAdmin() stays outside the try: it redirects when the session has
+// expired, and redirect() works by throwing, so a try around it would swallow
+// the navigation. Expected failures are returned as data, never thrown, so the
+// client never needs a catch that could suppress that redirect.
+export async function togglePublished(id: number, published: boolean): Promise<ActionResult> {
   await requireAdmin();
-  await setPublished(id, published);
-  const slug = await slugForId(id);
-  await revalidateStorefront(slug ? [slug] : []);
+  try {
+    await setPublished(id, published);
+    const slug = await slugForId(id);
+    await revalidateStorefront(slug ? [slug] : []);
+  } catch (error) {
+    return { ok: false, error: messageForDbError(error) ?? "Couldn't update. Try again." };
+  }
   revalidatePath("/admin");
+  return { ok: true };
 }
 
-export async function toggleFeatured(id: number, featured: boolean): Promise<void> {
+export async function toggleFeatured(id: number, featured: boolean): Promise<ActionResult> {
   await requireAdmin();
-  await setFeatured(id, featured);
-  const slug = await slugForId(id);
-  await revalidateStorefront(slug ? [slug] : []);
+  try {
+    await setFeatured(id, featured);
+    const slug = await slugForId(id);
+    await revalidateStorefront(slug ? [slug] : []);
+  } catch (error) {
+    return { ok: false, error: messageForDbError(error) ?? "Couldn't update. Try again." };
+  }
   revalidatePath("/admin");
+  return { ok: true };
 }
 ```
 
@@ -1446,7 +1462,7 @@ function priceLabel(row: AdminProductRow): string {
 
 export function ProductRow({ row }: { row: AdminProductRow }) {
   const [pending, startTransition] = useTransition();
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <tr className={styles.row} data-pending={pending || undefined}>
@@ -1480,25 +1496,24 @@ export function ProductRow({ row }: { row: AdminProductRow }) {
           className="btn btn-secondary"
           disabled={pending}
           onClick={() =>
-            // Return the promise rather than discarding it with `void`: React only
+            // Await the promise rather than discarding it with `void`: React only
             // holds a transition pending while the callback's thenable is unsettled,
-            // so a synchronous `undefined` ends it immediately and `pending` never
-            // shows. The catch is what stops a failed toggle from being silent.
+            // so a synchronous `undefined` ends it at once and `pending` never shows.
+            // Deliberately no try/catch — togglePublished calls requireAdmin(), which
+            // redirects on an expired session, and a catch here would swallow that
+            // navigation. Expected failures arrive as a returned ActionResult.
             startTransition(async () => {
-              setFailed(false);
-              try {
-                await togglePublished(row.id, !row.published);
-              } catch {
-                setFailed(true);
-              }
+              setError(null);
+              const result = await togglePublished(row.id, !row.published);
+              if (!result.ok) setError(result.error);
             })
           }
         >
           {row.published ? "Unpublish" : "Publish"}
         </button>
-        {failed && (
+        {error && (
           <span className={styles.rowError} role="alert">
-            Couldn&rsquo;t update
+            {error}
           </span>
         )}
       </td>
