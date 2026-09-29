@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPassword, endSession, requireAdmin, startSession } from "@/lib/admin/auth";
 import { messageForDbError } from "@/lib/admin/errors";
-import { createProduct, setFeatured, setPublished, slugForId } from "@/lib/admin/products";
+import {
+  createProduct,
+  getProductForAdmin,
+  listCollectionNames,
+  setFeatured,
+  setPublished,
+  slugForId,
+  updateProduct,
+} from "@/lib/admin/products";
 import { slugify } from "@/lib/admin/slug";
 
 export type ActionResult = { ok: true } | { ok: false; error: string; field?: string };
@@ -103,4 +111,69 @@ export async function createProductAction(
   await revalidateStorefront([slug]);
   revalidatePath("/admin");
   redirect(`/admin/products/${id}`);
+}
+
+function optionalText(formData: FormData, key: string): string | null {
+  const value = String(formData.get(key) ?? "").trim();
+  return value === "" ? null : value;
+}
+
+export async function updateProductAction(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const id = Number(formData.get("id"));
+  if (!Number.isInteger(id)) return { ok: false, error: "Unknown product." };
+
+  const existing = await getProductForAdmin(id);
+  if (!existing) return { ok: false, error: "That product no longer exists." };
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: false, error: "A title is required.", field: "title" };
+
+  const slug = String(formData.get("slug") ?? "").trim();
+  if (!slug) return { ok: false, error: "A web address is required.", field: "slug" };
+
+  const yearRaw = String(formData.get("year") ?? "").trim();
+  let year: number | null = null;
+  if (yearRaw !== "") {
+    year = Number(yearRaw);
+    if (!Number.isInteger(year)) {
+      return { ok: false, error: "The year must be a whole number.", field: "year" };
+    }
+  }
+
+  const sortOrderRaw = String(formData.get("sortOrder") ?? "").trim();
+  const sortOrder = sortOrderRaw === "" ? 0 : Number(sortOrderRaw);
+  if (!Number.isInteger(sortOrder)) {
+    return { ok: false, error: "Sort order must be a whole number.", field: "sortOrder" };
+  }
+
+  try {
+    await updateProduct(id, {
+      title,
+      slug,
+      year,
+      medium: optionalText(formData, "medium"),
+      dimensions: optionalText(formData, "dimensions"),
+      description: optionalText(formData, "description"),
+      collection: optionalText(formData, "collection"),
+      featured: formData.get("featured") === "on",
+      published: formData.get("published") === "on",
+      sortOrder,
+    });
+  } catch (error) {
+    const message = messageForDbError(error);
+    if (message) return { ok: false, error: message };
+    throw error;
+  }
+
+  // Both slugs: the old URL would otherwise keep serving stale HTML.
+  const slugs = existing.slug === slug ? [slug] : [existing.slug, slug];
+  await revalidateStorefront(slugs);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/products/${id}`);
+  return { ok: true };
 }
