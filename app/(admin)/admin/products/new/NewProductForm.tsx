@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { slugify } from "@/lib/admin/slug";
 import { createProductAction, type ActionResult } from "../../actions";
 import styles from "../../form.module.css";
@@ -18,16 +18,18 @@ export function NewProductForm() {
   // user has edited since: otherwise a message keeps describing a value that is
   // no longer on screen. One onChange on the <form> covers every field, since
   // React change events bubble.
+  //
+  // The gate is reset by an effect on `state` rather than by wrapping formAction
+  // in a closure. `action` must stay bound to the server action itself: React
+  // renders that as a real endpoint in the DOM's action attribute, so the form
+  // still submits before JS hydrates. A wrapped closure cannot be serialised
+  // that way and silently costs progressive enhancement.
   const [edited, setEdited] = useState(false);
+  useEffect(() => setEdited(false), [state]);
   const error = !edited && state && !state.ok ? state : null;
 
-  const submit = (formData: FormData) => {
-    setEdited(false);
-    formAction(formData);
-  };
-
   return (
-    <form action={submit} onChange={() => setEdited(true)} className={styles.form}>
+    <form action={formAction} onChange={() => setEdited(true)} className={styles.form}>
       <div className={styles.field}>
         <label className={styles.label} htmlFor="title">
           Title
