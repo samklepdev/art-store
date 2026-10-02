@@ -100,6 +100,9 @@ run in `schema_migrations` and applies each file once inside its own transaction
   `order_items` tables. The admin has an order screen at `/admin/orders` for viewing paid
   orders and marking them fulfilled (reversible). Refunds are still issued in the Stripe
   dashboard — the app never sets the `refunded` status itself.
+- **Sales analytics.** `/admin/analytics` shows the last 30 days at a glance: total revenue,
+  order count, average order value, items sold, a daily revenue chart, and top-selling items.
+  Refunded orders are excluded. Traffic/page-view analytics is not included.
 - **Editing in two tabs.** Saving a product or a format overwrites the whole row, so if you edit
   the same one in two tabs the second save wins and the first is lost silently. Edit in one tab.
 - **Leftover image files.** Removing an image deletes its database row but leaves the file in the
