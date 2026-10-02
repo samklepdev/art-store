@@ -1,0 +1,24 @@
+/* Chart (Task 3). Page classes are appended in Task 4. */
+.chart {
+  margin: 0;
+}
+
+.chartSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/*
+ * Categorical slot 1 (dataviz skill palette) for the dark surface. This app
+ * renders a single, forced-dark theme (see app/globals.css: `color-scheme:
+ * dark`, no `prefers-color-scheme` branching anywhere) rather than a
+ * light/dark toggle, so one dark-validated hex is used instead of a media
+ * query pair that would mismatch against the always-dark background.
+ * Validated with scripts/validate_palette.js against this app's actual
+ * surfaces (--bg #0d0b1f, --surface #17142f, --surface-2 #221d44): lightness
+ * band, chroma floor, and contrast (>= 3:1) all pass.
+ */
+.bar {
+  fill: #3987e5;
+}
