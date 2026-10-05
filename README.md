@@ -90,6 +90,10 @@ run in `schema_migrations` and applies each file once inside its own transaction
 
 ## Things to know
 
+- **Policy pages.** Shipping, returns, privacy and terms live at `/policies/{shipping,returns,privacy,terms}`
+  and are linked in the footer. Their text is in `lib/policies.ts` (edit there); shipping facts like the
+  rate and free-shipping threshold come from `lib/site.ts`. The copy is a starter template to review before
+  publishing — not legal advice.
 - **Two buyers, one original.** Stock is checked when checkout starts. If two people check out the
   same original at the same moment, both can pay. The order log will show it, and you refund one
   in Stripe. If this matters to you, the next step is reserving stock when a checkout session is
