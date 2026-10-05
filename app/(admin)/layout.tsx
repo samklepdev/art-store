@@ -13,6 +13,7 @@ export default function AdminLayout({ children }: Readonly<{ children: React.Rea
         <nav className={styles.nav}>
           <Link href="/admin">Products</Link>
           <Link href="/admin/orders">Orders</Link>
+          <Link href="/admin/analytics">Analytics</Link>
           <Link href="/">View store</Link>
           <form action={logout}>
             <button type="submit" className={styles.linkButton}>
