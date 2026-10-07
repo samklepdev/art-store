@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCollections } from "@/lib/products";
 import { shopHref } from "@/lib/shop";
 import { site } from "@/lib/site";
+import { POLICY_LINKS } from "@/lib/policies";
 import styles from "./Footer.module.css";
 
 export async function Footer() {
@@ -23,6 +24,16 @@ export async function Footer() {
             {collections.map((c) => (
               <li key={c.name}>
                 <Link href={shopHref({ collection: c.name })}>{c.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Policies">
+          <h2 className={styles.heading}>Policies</h2>
+          <ul className={styles.links}>
+            {POLICY_LINKS.map((link) => (
+              <li key={link.slug}>
+                <Link href={`/policies/${link.slug}`}>{link.title}</Link>
               </li>
             ))}
           </ul>
